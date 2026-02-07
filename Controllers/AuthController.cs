@@ -5,7 +5,6 @@ using MonBackendAspNet.DTOs.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 
-
 namespace MonBackendAspNet.Controllers
 {
     [ApiController]
@@ -57,7 +56,49 @@ namespace MonBackendAspNet.Controllers
             if (result == PasswordVerificationResult.Failed)
                 return Unauthorized(new { message = "Identifiants invalides." });
 
-            return Ok(new { message = "Connexion réussie", userId = user.Id });
+            // ⭐ Créer la session
+            HttpContext.Session.SetInt32("UserId", user.Id);
+            HttpContext.Session.SetString("Username", user.Username);
+            HttpContext.Session.SetString("Email", user.Email);
+
+            return Ok(new
+            {
+                message = "Connexion réussie",
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    email = user.Email
+                }
+            });
+        }
+
+        // ⭐ Vérifier si l'utilisateur est connecté
+        [HttpGet("me")]
+        public IActionResult GetCurrentUser()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+
+            if (userId == null)
+                return Unauthorized(new { message = "Non authentifié" });
+
+            var username = HttpContext.Session.GetString("Username");
+            var email = HttpContext.Session.GetString("Email");
+
+            return Ok(new
+            {
+                id = userId,
+                username = username,
+                email = email
+            });
+        }
+
+        // ⭐ Déconnexion
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            HttpContext.Session.Clear();
+            return Ok(new { message = "Déconnexion réussie" });
         }
     }
 }

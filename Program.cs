@@ -12,24 +12,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ⭐ AJOUT : Configuration des sessions
-builder.Services.AddDistributedMemoryCache(); // Stockage en mémoire
+// ⭐ Configuration des sessions
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Durée de la session
-    options.Cookie.HttpOnly = true; // Sécurité contre XSS
-    options.Cookie.IsEssential = true; // Nécessaire pour RGPD
-    options.Cookie.SameSite = SameSiteMode.Lax; // Protection CSRF
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS uniquement
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.None; // Pour dev local, mettre Always en prod
+    options.Cookie.Name = ".MonApp.Session";
 });
 
-// ⭐ AJOUT : CORS pour Next.js
+// ⭐ CORS pour Next.js
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("NextJsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // URL de ton Next.js
-              .AllowCredentials() // Important pour les cookies !
+        policy.WithOrigins("http://localhost:3000")
+              .AllowCredentials()
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -64,10 +65,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("NextJsPolicy"); // ⭐ AJOUT
-
-app.UseSession(); // ⭐ AJOUT : Active les sessions
-
+// ⭐ Ordre important !
+app.UseCors("NextJsPolicy");
+app.UseSession();
 app.UseAuthorization();
 
 app.MapControllers();
