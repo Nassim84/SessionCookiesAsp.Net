@@ -3,16 +3,38 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
-using MonBackendAspNet.Data; // <-- Assure-toi que le namespace est correct
+using MonBackendAspNet.Data;
 using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configuration de la connexion SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Ajouter les services nécessaires
+// ⭐ AJOUT : Configuration des sessions
+builder.Services.AddDistributedMemoryCache(); // Stockage en mémoire
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Durée de la session
+    options.Cookie.HttpOnly = true; // Sécurité contre XSS
+    options.Cookie.IsEssential = true; // Nécessaire pour RGPD
+    options.Cookie.SameSite = SameSiteMode.Lax; // Protection CSRF
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS uniquement
+});
+
+// ⭐ AJOUT : CORS pour Next.js
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NextJsPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // URL de ton Next.js
+              .AllowCredentials() // Important pour les cookies !
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddControllers();
 
 // Swagger
@@ -36,11 +58,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Mon API v1");
-        c.RoutePrefix = "swagger"; // donc accessible via /swagger
+        c.RoutePrefix = "swagger";
     });
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("NextJsPolicy"); // ⭐ AJOUT
+
+app.UseSession(); // ⭐ AJOUT : Active les sessions
 
 app.UseAuthorization();
 
